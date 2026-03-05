@@ -56,14 +56,14 @@ sg menu ingredient --restaurant-id <id> --name "<ingredient name>"
 Prefer name-based cart edits:
 
 ```bash
-sg cart add-by-name --product-name "<product>" --additions "<ingredient>" --removals "<ingredient>"
+sg cart add-by-name --product-name "<product>" --custom-name "<user>'s <base item name>" --additions "<ingredient>" --removals "<ingredient>"
 ```
 
 Use ID-based add/update when explicit IDs are provided:
 
 ```bash
-sg cart add --product-id <product_id> --quantity 1 --additions <ingredient_id>
-sg cart update --line-item-id <line_item_id> --product-id <product_id> --quantity <n>
+sg cart add --product-id <product_id> --quantity 1 --custom-name "<user>'s <base item name>" --additions <ingredient_id>
+sg cart update --line-item-id <line_item_id> --product-id <product_id> --quantity <n> --custom-name "<user>'s <base item name>"
 sg cart remove --line-item-id <line_item_id>
 sg cart clear
 ```
@@ -81,6 +81,13 @@ Summarize:
 - Matched restaurant/product/ingredient IDs
 - Actions completed
 - Final cart line items. Include totals only when explicitly requested by the user.
+
+### Owner-Aware Naming
+
+- When an item belongs to a specific person, set `--custom-name` to `<user>'s <base item name>`.
+- Keep the original base item name in the custom name (for example, `davide's harvest bowl`).
+- Do not include modifications (add/remove/substitute details) in the custom name.
+- For follow-up requests like "update mine", match the sender to their custom-named line item first.
 
 ## Guardrails
 

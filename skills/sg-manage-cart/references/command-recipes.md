@@ -18,15 +18,15 @@ sg menu ingredient --restaurant-id 2104 --name "corn salsa"
 ## Add an Item by Name
 
 ```bash
-sg cart add-by-name --product-name "harvest bowl" --removals apples
-sg cart add-by-name --product-name "chicken caesar wrap" --additions "corn salsa"
+sg cart add-by-name --product-name "harvest bowl" --custom-name "davide's harvest bowl" --removals apples
+sg cart add-by-name --product-name "chicken caesar wrap" --custom-name "lenny's chicken caesar wrap" --additions "corn salsa"
 ```
 
 ## Edit Existing Cart Items
 
 ```bash
 sg cart view
-sg cart update --line-item-id <line_item_id> --product-id <product_id> --quantity 2
+sg cart update --line-item-id <line_item_id> --product-id <product_id> --quantity 2 --custom-name "davide's harvest bowl"
 sg cart remove --line-item-id <line_item_id>
 ```
 
