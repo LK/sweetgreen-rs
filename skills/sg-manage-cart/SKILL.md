@@ -79,13 +79,14 @@ sg cart count
 
 Summarize:
 - Matched restaurant/product/ingredient IDs
-- Commands executed
-- Final cart line items and totals
+- Actions completed
+- Final cart line items. Include totals only when explicitly requested by the user.
 
 ## Guardrails
 
 - Confirm destructive actions (`remove`, `clear`) when user intent is ambiguous.
 - Do not claim checkout is complete; this CLI manages cart state only.
+- Do not place or submit orders, and do not offer to place orders.
 - On failures, include debug report paths from `~/.sweetgreen/debug/`.
 
 ## Reference

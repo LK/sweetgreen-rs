@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, File};
 use std::io::{self, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -34,11 +34,12 @@ use crate::error::SweetgreenError;
 use crate::graphql::{GraphqlRequest, GraphqlResponse};
 use crate::models::{
     AddLineItemMutationData, AddLineItemToCartInput, BagCountQueryData, Cart, CartQueryData,
-    EditLineItemInCartInput, EditLineItemMutationData, GiftCardBalanceQueryData,
-    LocationSearchMatch, LocationsSearchByStringQueryData, MenuContentRestaurantQueryData,
-    MenuRestaurant, RedeemGiftCardMutationData, RemoveFromCartInput, RemoveLineItemMutationData,
-    RemoveRewardInput, RemoveRewardMutationData, Reward, RewardMutationData, RewardsQueryData,
-    SessionInfo, SessionQueryData, SignInMutationData, SubmitPromoOrGiftCardCodeInput,
+    CustomizationDataQueryData, EditLineItemInCartInput, EditLineItemMutationData,
+    GiftCardBalanceQueryData, LocationSearchMatch, LocationsSearchByStringQueryData,
+    MenuContentRestaurantQueryData, MenuIngredient, MenuRestaurant, RedeemGiftCardMutationData,
+    RemoveFromCartInput, RemoveLineItemMutationData, RemoveRewardInput, RemoveRewardMutationData,
+    Reward, RewardMutationData, RewardsQueryData, SessionInfo, SessionQueryData,
+    SignInMutationData, SubmitPromoOrGiftCardCodeInput,
 };
 use crate::queries;
 use crate::state::{AuthMode, AuthState, AuthStatePatch, StateStore};
@@ -463,6 +464,52 @@ impl SweetgreenClient {
             )
             .await?;
         Ok(data.search_locations_by_string)
+    }
+
+    pub async fn customization_ingredients_for_product(
+        &self,
+        state: &AuthState,
+        product_id: impl Into<String>,
+        restaurant_id: impl Into<String>,
+    ) -> Result<Vec<MenuIngredient>, SweetgreenError> {
+        let data: CustomizationDataQueryData = self
+            .graphql(
+                state,
+                "CustomizationData",
+                queries::CUSTOMIZATION_DATA_QUERY,
+                json!({
+                    "productId": product_id.into(),
+                    "restaurantId": restaurant_id.into(),
+                }),
+                true,
+            )
+            .await?;
+
+        let product = data.product.ok_or_else(|| {
+            SweetgreenError::Auth(
+                "customization lookup returned no product for given identifiers".to_string(),
+            )
+        })?;
+
+        let mut ingredients_by_id = BTreeMap::new();
+        for ingredient in product.ingredients {
+            ingredients_by_id.insert(ingredient.id.clone(), ingredient);
+        }
+
+        for group in product.modifier_groups {
+            for modification in group.modifications {
+                if modification.out_of_stock.unwrap_or(false) {
+                    continue;
+                }
+                if let Some(ingredient) = modification.ingredient {
+                    ingredients_by_id
+                        .entry(ingredient.id.clone())
+                        .or_insert(ingredient);
+                }
+            }
+        }
+
+        Ok(ingredients_by_id.into_values().collect())
     }
 
     pub async fn add_line_item(

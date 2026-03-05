@@ -96,6 +96,34 @@ query MenuContentRestaurant($id: ID!, $costChannel: CostChannel) {
 }
 "#;
 
+pub const CUSTOMIZATION_DATA_QUERY: &str = r#"
+query CustomizationData($productId: ID!, $restaurantId: ID!) {
+  product(id: $productId) {
+    id
+    slug
+    name
+    ingredients {
+      id
+      name
+    }
+    modifierGroups {
+      id
+      modifications {
+        id
+        outOfStock
+        ingredient {
+          id
+          name
+        }
+      }
+    }
+  }
+  restaurant(id: $restaurantId) {
+    id
+  }
+}
+"#;
+
 pub const LOCATIONS_SEARCH_BY_STRING_QUERY: &str = r#"
 query LocationsSearchBySearchString(
   $searchString: String!

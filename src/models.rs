@@ -273,6 +273,40 @@ pub struct MenuContentRestaurantQueryData {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CustomizationDataQueryData {
+    pub product: Option<CustomizationProduct>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomizationProduct {
+    pub id: String,
+    pub slug: Option<String>,
+    pub name: String,
+    #[serde(default)]
+    pub ingredients: Vec<MenuIngredient>,
+    #[serde(default)]
+    pub modifier_groups: Vec<CustomizationModifierGroup>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomizationModifierGroup {
+    pub id: String,
+    #[serde(default)]
+    pub modifications: Vec<CustomizationModification>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomizationModification {
+    pub id: String,
+    pub out_of_stock: Option<bool>,
+    pub ingredient: Option<MenuIngredient>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MenuRestaurant {
     pub id: String,
     pub slug: Option<String>,

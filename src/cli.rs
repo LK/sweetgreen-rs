@@ -515,12 +515,25 @@ async fn run_menu(command: MenuCommands, client: &SweetgreenClient) -> Result<()
             let restaurant = client.menu_for_restaurant(args.restaurant_id).await?;
             let products = flatten_menu_products(&restaurant);
             let catalog = build_restaurant_ingredient_catalog(&products);
-            let matches = resolve_ingredient_matches(
+            let mut matches = resolve_ingredient_matches(
                 &catalog,
                 &args.name,
                 args.limit.max(1),
                 IngredientMatchScope::RestaurantOnly,
             );
+
+            if matches.is_empty() {
+                let deep_catalog =
+                    build_customization_ingredient_catalog(client, &restaurant, &products).await;
+                if !deep_catalog.is_empty() {
+                    matches = resolve_ingredient_matches(
+                        &deep_catalog,
+                        &args.name,
+                        args.limit.max(1),
+                        IngredientMatchScope::RestaurantOnly,
+                    );
+                }
+            }
 
             if matches.is_empty() {
                 return Err(SweetgreenError::InvalidArgument(format!(
@@ -594,27 +607,43 @@ async fn run_cart(command: CartCommands, client: &SweetgreenClient) -> Result<()
             let products = flatten_menu_products(&restaurant);
             let ingredient_catalog = build_restaurant_ingredient_catalog(&products);
             let product_match = resolve_product_by_name(&products, &args.product_name, true)?;
+            let effective_product_ingredients =
+                resolve_effective_product_ingredients_for_add_by_name(
+                    client,
+                    &state,
+                    &restaurant,
+                    &product_match.entry.product,
+                )
+                .await;
 
-            let additions = resolve_ingredient_list(
-                &product_match.entry.product.ingredients,
+            let mut resolved_modifications = resolve_named_modifications(
+                &effective_product_ingredients,
                 &ingredient_catalog,
                 &args.additions,
-                "addition ingredient",
-                product_match.entry.product.name.as_str(),
-            )?;
-            let removals = resolve_ingredient_list(
-                &product_match.entry.product.ingredients,
-                &ingredient_catalog,
                 &args.removals,
-                "removal ingredient",
-                product_match.entry.product.name.as_str(),
-            )?;
-            let substitutions = resolve_substitutions_by_name(
-                &product_match.entry.product.ingredients,
-                &ingredient_catalog,
                 &args.substitutions,
                 product_match.entry.product.name.as_str(),
-            )?;
+            );
+
+            let has_named_changes = !args.additions.is_empty()
+                || !args.removals.is_empty()
+                || !args.substitutions.is_empty();
+            if resolved_modifications.is_err() && has_named_changes {
+                let deep_catalog =
+                    build_customization_ingredient_catalog(client, &restaurant, &products).await;
+                if !deep_catalog.is_empty() {
+                    resolved_modifications = resolve_named_modifications(
+                        &effective_product_ingredients,
+                        &deep_catalog,
+                        &args.additions,
+                        &args.removals,
+                        &args.substitutions,
+                        product_match.entry.product.name.as_str(),
+                    );
+                }
+            }
+
+            let (additions, removals, substitutions) = resolved_modifications?;
 
             let delivery_order_details = resolve_delivery_details_for_cart(
                 client,
@@ -888,6 +917,123 @@ fn build_restaurant_ingredient_catalog(
         .collect()
 }
 
+async fn build_customization_ingredient_catalog(
+    client: &SweetgreenClient,
+    restaurant: &MenuRestaurant,
+    products: &[MenuProductEntry],
+) -> Vec<RestaurantIngredientEntry> {
+    let mut by_id: BTreeMap<String, (String, BTreeSet<String>)> = BTreeMap::new();
+    let state = AuthState::default();
+
+    for entry in products {
+        let customization_candidates = customization_lookup_candidates(
+            entry.product.slug.as_deref(),
+            &entry.product.id,
+            restaurant,
+        );
+        let mut customization_ingredients = None;
+        for (product_ref, restaurant_ref) in customization_candidates {
+            let Ok(ingredients) = client
+                .customization_ingredients_for_product(&state, product_ref, restaurant_ref)
+                .await
+            else {
+                continue;
+            };
+            customization_ingredients = Some(ingredients);
+            break;
+        }
+
+        let Some(ingredients) = customization_ingredients else {
+            continue;
+        };
+
+        for ingredient in ingredients {
+            let slot = by_id
+                .entry(ingredient.id.clone())
+                .or_insert_with(|| (ingredient.name.clone(), BTreeSet::new()));
+            if slot.0.is_empty() {
+                slot.0 = ingredient.name.clone();
+            }
+            slot.1.insert(entry.product.name.clone());
+        }
+    }
+
+    by_id
+        .into_iter()
+        .map(
+            |(ingredient_id, (ingredient_name, product_names))| RestaurantIngredientEntry {
+                ingredient_id,
+                ingredient_name,
+                product_names: product_names.into_iter().collect(),
+            },
+        )
+        .collect()
+}
+
+async fn resolve_effective_product_ingredients_for_add_by_name(
+    client: &SweetgreenClient,
+    state: &AuthState,
+    restaurant: &MenuRestaurant,
+    product: &MenuProduct,
+) -> Vec<MenuIngredient> {
+    let mut ingredients_by_id = BTreeMap::new();
+    for ingredient in &product.ingredients {
+        ingredients_by_id.insert(ingredient.id.clone(), ingredient.clone());
+    }
+
+    let customization_candidates =
+        customization_lookup_candidates(product.slug.as_deref(), &product.id, restaurant);
+    for (product_ref, restaurant_ref) in customization_candidates {
+        let Ok(customization_ingredients) = client
+            .customization_ingredients_for_product(state, product_ref, restaurant_ref)
+            .await
+        else {
+            continue;
+        };
+
+        for ingredient in customization_ingredients {
+            ingredients_by_id
+                .entry(ingredient.id.clone())
+                .or_insert(ingredient);
+        }
+        break;
+    }
+
+    ingredients_by_id.into_values().collect()
+}
+
+fn customization_lookup_candidates(
+    product_slug: Option<&str>,
+    product_id: &str,
+    restaurant: &MenuRestaurant,
+) -> Vec<(String, String)> {
+    let mut candidates = Vec::new();
+    let mut seen = HashSet::new();
+
+    let mut push = |product_ref: &str, restaurant_ref: &str| {
+        if product_ref.trim().is_empty() || restaurant_ref.trim().is_empty() {
+            return;
+        }
+        let key = format!("{product_ref}::{restaurant_ref}");
+        if seen.insert(key) {
+            candidates.push((product_ref.to_string(), restaurant_ref.to_string()));
+        }
+    };
+
+    if let (Some(pslug), Some(rslug)) = (product_slug, restaurant.slug.as_deref()) {
+        push(pslug, rslug);
+    }
+    if let Some(pslug) = product_slug {
+        push(pslug, &restaurant.id);
+    }
+    if let Some(rslug) = restaurant.slug.as_deref() {
+        push(product_id, rslug);
+    }
+    push(product_id, &restaurant.id);
+
+    candidates
+}
+
 fn resolve_product_by_name<'a>(
     products: &'a [MenuProductEntry],
     query: &str,
@@ -1028,6 +1174,44 @@ fn resolve_substitutions_by_name(
             })
         })
         .collect()
+}
+
+fn resolve_named_modifications(
+    product_ingredients: &[MenuIngredient],
+    restaurant_ingredients: &[RestaurantIngredientEntry],
+    additions: &[String],
+    removals: &[String],
+    substitutions: &[String],
+    product_name: &str,
+) -> Result<
+    (
+        Vec<ResolvedIngredientMatch>,
+        Vec<ResolvedIngredientMatch>,
+        Vec<IngredientSubstitutionModificationInput>,
+    ),
+    SweetgreenError,
+> {
+    let additions = resolve_ingredient_list(
+        product_ingredients,
+        restaurant_ingredients,
+        additions,
+        "addition ingredient",
+        product_name,
+    )?;
+    let removals = resolve_ingredient_list(
+        product_ingredients,
+        restaurant_ingredients,
+        removals,
+        "removal ingredient",
+        product_name,
+    )?;
+    let substitutions = resolve_substitutions_by_name(
+        product_ingredients,
+        restaurant_ingredients,
+        substitutions,
+        product_name,
+    )?;
+    Ok((additions, removals, substitutions))
 }
 
 fn resolve_single_ingredient(
