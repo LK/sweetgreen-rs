@@ -1,0 +1,93 @@
+---
+name: sg-manage-cart
+description: Manage Sweetgreen carts using the local `sg` CLI. Use when asked to find restaurants, inspect menu data, resolve product or ingredient IDs, add/update/remove cart items, check auth/cart state, or troubleshoot Sweetgreen CLI cart operations.
+---
+
+# SG Manage Cart
+
+Use this skill to operate Sweetgreen cart flows through `sg` on the local machine.
+
+## Workflow
+
+1. Verify CLI availability and auth state.
+2. Resolve restaurant and menu information.
+3. Apply cart mutations.
+4. Re-check cart state and report exact outcomes.
+
+## Step 1: Verify CLI and Session
+
+Run:
+
+```bash
+command -v sg
+sg auth status
+```
+
+Prefer browser-cookie mode when cart changes should match the web checkout session:
+
+```bash
+sg auth import-browser-cookies --browser arc --domain sweetgreen.com
+```
+
+Use OTP mode when browser import is unavailable:
+
+```bash
+sg auth login --email <email>
+```
+
+## Step 2: Resolve IDs and Menu Details
+
+Find restaurant IDs:
+
+```bash
+sg menu restaurants --query "<city|neighborhood|zip|name>"
+```
+
+Inspect products and ingredients:
+
+```bash
+sg menu products --restaurant-id <id> --search "<text>" --include-ingredients
+sg menu product --restaurant-id <id> --name "<product name>"
+sg menu ingredient --restaurant-id <id> --name "<ingredient name>"
+```
+
+## Step 3: Mutate Cart
+
+Prefer name-based cart edits:
+
+```bash
+sg cart add-by-name --product-name "<product>" --additions "<ingredient>" --removals "<ingredient>"
+```
+
+Use ID-based add/update when explicit IDs are provided:
+
+```bash
+sg cart add --product-id <product_id> --quantity 1 --additions <ingredient_id>
+sg cart update --line-item-id <line_item_id> --product-id <product_id> --quantity <n>
+sg cart remove --line-item-id <line_item_id>
+sg cart clear
+```
+
+## Step 4: Verify and Report
+
+Always verify final cart state:
+
+```bash
+sg cart view
+sg cart count
+```
+
+Summarize:
+- Matched restaurant/product/ingredient IDs
+- Commands executed
+- Final cart line items and totals
+
+## Guardrails
+
+- Confirm destructive actions (`remove`, `clear`) when user intent is ambiguous.
+- Do not claim checkout is complete; this CLI manages cart state only.
+- On failures, include debug report paths from `~/.sweetgreen/debug/`.
+
+## Reference
+
+Use [references/command-recipes.md](references/command-recipes.md) for common task-to-command mappings.

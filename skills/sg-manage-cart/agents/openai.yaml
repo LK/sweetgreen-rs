@@ -1,0 +1,4 @@
+interface:
+  display_name: "SG Cart Manager"
+  short_description: "Run sg CLI to manage Sweetgreen carts"
+  default_prompt: "Use $sg-manage-cart to find a restaurant, inspect menu options, and update the Sweetgreen cart via the sg CLI."
