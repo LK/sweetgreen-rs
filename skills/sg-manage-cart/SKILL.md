@@ -26,7 +26,7 @@ sg auth status
 Prefer browser-cookie mode when cart changes should match the web checkout session:
 
 ```bash
-sg auth import-browser-cookies --browser arc --domain sweetgreen.com
+sg auth import-browser-cookies --domain sweetgreen.com
 ```
 
 Use OTP mode when browser import is unavailable:

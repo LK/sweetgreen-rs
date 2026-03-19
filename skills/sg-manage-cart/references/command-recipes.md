@@ -34,7 +34,7 @@ sg cart remove --line-item-id <line_item_id>
 
 ```bash
 sg auth status
-sg auth import-browser-cookies --browser arc --domain sweetgreen.com
+sg auth import-browser-cookies --domain sweetgreen.com
 sg auth login --email you@example.com
 ```
 

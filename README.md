@@ -52,7 +52,7 @@ There are two ways to run `sg`.
 Use this if you want CLI changes to show up in your normal Sweetgreen web session.
 
 ```bash
-sg auth import-browser-cookies --browser arc --domain sweetgreen.com
+sg auth import-browser-cookies --domain sweetgreen.com
 ```
 
 ### 2) Local Token Mode (OTP)

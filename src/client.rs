@@ -1785,11 +1785,35 @@ except Exception as exc:
     print(f"missing dependency browser-cookie3: {exc}", file=sys.stderr)
     sys.exit(2)
 
-if not hasattr(browser_cookie3, browser):
+class Dia(browser_cookie3.ChromiumBased):
+    def __init__(self, cookie_file=None, domain_name="", key_file=None):
+        args = {
+            'osx_cookies': [
+                '~/Library/Application Support/Dia/User Data/Default/Cookies',
+                '~/Library/Application Support/Dia/User Data/Profile */Cookies',
+            ],
+            'os_crypt_name': 'chrome',
+            'osx_key_service': 'Dia Safe Storage',
+            'osx_key_user': 'Dia',
+        }
+        super().__init__(
+            browser='Dia',
+            cookie_file=cookie_file,
+            domain_name=domain_name,
+            key_file=key_file,
+            **args,
+        )
+
+def dia(cookie_file=None, domain_name="", key_file=None):
+    return Dia(cookie_file, domain_name, key_file).load()
+
+if browser == 'dia':
+    extractor = dia
+elif hasattr(browser_cookie3, browser):
+    extractor = getattr(browser_cookie3, browser)
+else:
     print(f"unsupported browser '{browser}'", file=sys.stderr)
     sys.exit(3)
-
-extractor = getattr(browser_cookie3, browser)
 
 try:
     jar = extractor(domain_name=domain)

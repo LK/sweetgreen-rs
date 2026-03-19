@@ -66,7 +66,7 @@ pub struct LoginArgs {
 
 #[derive(Debug, Args)]
 pub struct ImportBrowserCookiesArgs {
-    #[arg(long, value_enum, default_value_t = BrowserKind::Arc)]
+    #[arg(long, value_enum, default_value_t = BrowserKind::Dia)]
     pub browser: BrowserKind,
 
     #[arg(long, default_value = "sweetgreen.com")]
@@ -75,6 +75,7 @@ pub struct ImportBrowserCookiesArgs {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum BrowserKind {
+    Dia,
     Arc,
     Chrome,
     Chromium,
@@ -86,6 +87,7 @@ pub enum BrowserKind {
 impl BrowserKind {
     fn python_name(self) -> &'static str {
         match self {
+            BrowserKind::Dia => "dia",
             BrowserKind::Arc => "arc",
             BrowserKind::Chrome => "chrome",
             BrowserKind::Chromium => "chromium",
