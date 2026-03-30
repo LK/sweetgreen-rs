@@ -515,7 +515,7 @@ query BagTimesPolling {
 "#;
 
 pub const ADD_LINE_ITEM_MUTATION: &str = r#"
-mutation AddUpsellToBag($input: AddLineItemToCartInput!) {
+mutation AddLineItemToCart($input: AddLineItemToCartInput!) {
   addLineItemToCart(input: $input) {
     __typename
     ... on AddLineItemToCartSuccess {

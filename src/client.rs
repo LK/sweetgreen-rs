@@ -519,7 +519,7 @@ impl SweetgreenClient {
     ) -> Result<AddLineItemMutationData, SweetgreenError> {
         self.graphql(
             state,
-            "AddUpsellToBag",
+            "AddLineItemToCart",
             queries::ADD_LINE_ITEM_MUTATION,
             json!({ "input": input }),
             true,
@@ -770,18 +770,14 @@ impl SweetgreenClient {
             let joined = payload
                 .errors
                 .iter()
-                .map(|err| err.message.as_str())
+                .map(|err| err.summary())
                 .collect::<Vec<_>>()
                 .join("; ");
             let report = write_failure_report(
                 "graphql_application_errors",
                 &json!({
                     "operation_name": operation_name,
-                    "errors": payload
-                        .errors
-                        .iter()
-                        .map(|err| err.message.clone())
-                        .collect::<Vec<_>>(),
+                    "errors": payload.errors,
                     "has_data": payload.data.is_some(),
                 }),
             );

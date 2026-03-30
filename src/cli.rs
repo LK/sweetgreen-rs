@@ -576,6 +576,28 @@ async fn run_cart(command: CartCommands, client: &SweetgreenClient) -> Result<()
             Ok(())
         }
         CartCommands::Add(args) => {
+            let requested_restaurant_id = args.restaurant_id.map(|id| id.to_string());
+            ensure_requested_restaurant_matches_cart(
+                client,
+                &state,
+                requested_restaurant_id.as_deref(),
+            )
+            .await?;
+            let effective_restaurant_id =
+                resolve_effective_add_restaurant_id(client, &state, args.restaurant_id).await?;
+            let mixed_dressing_details = parse_mixed_dressings(&args.mixed_dressings)?;
+            let substitutions = parse_substitutions(&args.substitutions)?;
+            validate_raw_add_request(
+                client,
+                &state,
+                effective_restaurant_id.as_deref(),
+                &args.product_id,
+                &args.additions,
+                &args.removals,
+                &substitutions,
+                &mixed_dressing_details,
+            )
+            .await?;
             let delivery_order_details =
                 resolve_delivery_details_for_cart(client, &state, build_delivery_details(&args)?)
                     .await?;
@@ -587,7 +609,7 @@ async fn run_cart(command: CartCommands, client: &SweetgreenClient) -> Result<()
                     .collect(),
                 custom_name: args.custom_name,
                 delivery_order_details,
-                mixed_dressing_details: parse_mixed_dressings(&args.mixed_dressings)?,
+                mixed_dressing_details,
                 product_id: args.product_id,
                 quantity: args.quantity,
                 removals: args
@@ -596,7 +618,7 @@ async fn run_cart(command: CartCommands, client: &SweetgreenClient) -> Result<()
                     .map(|ingredient_id| IngredientModificationInput { ingredient_id })
                     .collect(),
                 restaurant_id: args.restaurant_id,
-                substitutions: parse_substitutions(&args.substitutions)?,
+                substitutions,
             };
 
             let result = client.add_line_item(&state, input).await?;
@@ -605,6 +627,8 @@ async fn run_cart(command: CartCommands, client: &SweetgreenClient) -> Result<()
         }
         CartCommands::AddByName(args) => {
             let restaurant_id = resolve_add_by_name_restaurant_id(client, &state, &args).await?;
+            ensure_requested_restaurant_matches_cart(client, &state, Some(restaurant_id.as_str()))
+                .await?;
             let restaurant = client.menu_for_restaurant(restaurant_id.clone()).await?;
             let products = flatten_menu_products(&restaurant);
             let ingredient_catalog = build_restaurant_ingredient_catalog(&products);
@@ -1426,6 +1450,167 @@ async fn resolve_add_by_name_restaurant_id(
     Err(SweetgreenError::InvalidArgument(
         "--restaurant-id is required when there is no active cart restaurant".to_string(),
     ))
+}
+
+async fn ensure_requested_restaurant_matches_cart(
+    client: &SweetgreenClient,
+    state: &AuthState,
+    requested_restaurant_id: Option<&str>,
+) -> Result<(), SweetgreenError> {
+    let Some(requested_restaurant_id) =
+        requested_restaurant_id.map(str::trim).filter(|value| !value.is_empty())
+    else {
+        return Ok(());
+    };
+
+    let Some(cart) = client.cart(state).await? else {
+        return Ok(());
+    };
+    let Some(active_restaurant) = cart.restaurant else {
+        return Ok(());
+    };
+
+    if active_restaurant.id == requested_restaurant_id {
+        return Ok(());
+    }
+
+    Err(SweetgreenError::InvalidArgument(format!(
+        "active cart belongs to restaurant {} ({}) but requested restaurant is {}; clear the cart or use the active cart restaurant",
+        active_restaurant.id, active_restaurant.name, requested_restaurant_id
+    )))
+}
+
+async fn resolve_effective_add_restaurant_id(
+    client: &SweetgreenClient,
+    state: &AuthState,
+    requested_restaurant_id: Option<i64>,
+) -> Result<Option<String>, SweetgreenError> {
+    if let Some(requested_restaurant_id) = requested_restaurant_id {
+        return Ok(Some(requested_restaurant_id.to_string()));
+    }
+
+    let Some(cart) = client.cart(state).await? else {
+        return Ok(None);
+    };
+
+    Ok(cart.restaurant.map(|restaurant| restaurant.id))
+}
+
+async fn validate_raw_add_request(
+    client: &SweetgreenClient,
+    state: &AuthState,
+    restaurant_id: Option<&str>,
+    product_id: &str,
+    additions: &[String],
+    removals: &[String],
+    substitutions: &[IngredientSubstitutionModificationInput],
+    mixed_dressing_details: &[MixedDressingDetailsInput],
+) -> Result<(), SweetgreenError> {
+    let Some(restaurant_id) = restaurant_id else {
+        return Ok(());
+    };
+
+    let restaurant = client.menu_for_restaurant(restaurant_id.to_string()).await?;
+    let products = flatten_menu_products(&restaurant);
+    let Some(product) = products.iter().find(|entry| entry.product.id == product_id) else {
+        return Err(SweetgreenError::InvalidArgument(format!(
+            "product id {} is not on restaurant {} ({}) menu",
+            product_id, restaurant.id, restaurant.name
+        )));
+    };
+
+    let customization_ingredients = client
+        .customization_ingredients_for_product(state, product_id.to_string(), restaurant_id)
+        .await?;
+    let valid_ingredients = customization_ingredients
+        .into_iter()
+        .map(|ingredient| (ingredient.id, ingredient.name))
+        .collect::<BTreeMap<_, _>>();
+
+    validate_raw_ingredient_ids(
+        additions,
+        "addition",
+        &product.product.name,
+        &restaurant.id,
+        &valid_ingredients,
+    )?;
+    validate_raw_ingredient_ids(
+        removals,
+        "removal",
+        &product.product.name,
+        &restaurant.id,
+        &valid_ingredients,
+    )?;
+
+    let substitution_ids = substitutions
+        .iter()
+        .flat_map(|item| {
+            [
+                item.added_ingredient_id.clone(),
+                item.removed_ingredient_id.clone(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    validate_raw_ingredient_ids(
+        &substitution_ids,
+        "substitution",
+        &product.product.name,
+        &restaurant.id,
+        &valid_ingredients,
+    )?;
+
+    let mixed_dressing_ids = mixed_dressing_details
+        .iter()
+        .map(|item| item.ingredient_id.clone())
+        .collect::<Vec<_>>();
+    validate_raw_ingredient_ids(
+        &mixed_dressing_ids,
+        "mixed dressing",
+        &product.product.name,
+        &restaurant.id,
+        &valid_ingredients,
+    )?;
+
+    Ok(())
+}
+
+fn validate_raw_ingredient_ids(
+    ingredient_ids: &[String],
+    kind: &str,
+    product_name: &str,
+    restaurant_id: &str,
+    valid_ingredients: &BTreeMap<String, String>,
+) -> Result<(), SweetgreenError> {
+    let invalid = ingredient_ids
+        .iter()
+        .filter(|ingredient_id| !valid_ingredients.contains_key(*ingredient_id))
+        .cloned()
+        .collect::<Vec<_>>();
+    if invalid.is_empty() {
+        return Ok(());
+    }
+
+    let examples = valid_ingredients
+        .iter()
+        .filter(|(ingredient_id, _)| {
+            matches!(
+                ingredient_id.as_str(),
+                "3" | "8" | "41" | "66" | "360" | "1465" | "1467"
+            )
+        })
+        .map(|(ingredient_id, name)| format!("{ingredient_id}={name}"))
+        .collect::<Vec<_>>();
+    let example_text = if examples.is_empty() {
+        String::new()
+    } else {
+        format!(". Current valid IDs include {}", examples.join(", "))
+    };
+
+    Err(SweetgreenError::InvalidArgument(format!(
+        "invalid {kind} ingredient id(s) for {product_name} at restaurant {restaurant_id}: {}{}",
+        invalid.join(", "),
+        example_text
+    )))
 }
 
 fn build_delivery_details(
