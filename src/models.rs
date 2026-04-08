@@ -108,6 +108,10 @@ pub struct CartLineItem {
     pub custom_name: Option<String>,
     pub cost: Option<f64>,
     pub per_item_cost: Option<f64>,
+    #[serde(default)]
+    pub added_ingredients: Vec<MenuIngredient>,
+    #[serde(default)]
+    pub removed_ingredients: Vec<MenuIngredient>,
     pub product: ProductSummary,
 }
 
@@ -117,6 +121,10 @@ pub struct ProductSummary {
     pub id: String,
     pub name: String,
     pub slug: Option<String>,
+    pub calories: Option<f64>,
+    pub base_product: Option<MenuBaseProduct>,
+    #[serde(default)]
+    pub ingredients: Vec<MenuIngredient>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -395,6 +403,8 @@ pub struct MenuLabel {
 pub struct MenuIngredient {
     pub id: String,
     pub name: String,
+    pub kind: Option<String>,
+    pub calories: Option<f64>,
     pub protein_g: Option<f64>,
     pub total_carbs_g: Option<f64>,
     pub total_fat_g: Option<f64>,

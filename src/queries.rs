@@ -8,7 +8,11 @@ query getSession {
 "#;
 
 pub const MENU_CONTENT_RESTAURANT_QUERY: &str = r#"
-query MenuContentRestaurant($id: ID!, $costChannel: CostChannel) {
+query MenuContentRestaurant(
+  $id: ID!
+  $costChannel: CostChannel
+  $caloriesVersion: CaloriesVersion
+) {
   restaurant(id: $id) {
     id
     __typename
@@ -63,9 +67,11 @@ query MenuContentRestaurant($id: ID!, $costChannel: CostChannel) {
             id
             __typename
             name
+            kind
             asset {
               url
             }
+            calories(version: $caloriesVersion)
             totalCarbsG
             proteinG
             totalFatG
@@ -97,7 +103,11 @@ query MenuContentRestaurant($id: ID!, $costChannel: CostChannel) {
 "#;
 
 pub const CUSTOMIZATION_DATA_QUERY: &str = r#"
-query CustomizationData($productId: ID!, $restaurantId: ID!) {
+query CustomizationData(
+  $productId: ID!
+  $restaurantId: ID!
+  $caloriesVersion: CaloriesVersion
+) {
   product(id: $productId) {
     id
     slug
@@ -105,6 +115,11 @@ query CustomizationData($productId: ID!, $restaurantId: ID!) {
     ingredients {
       id
       name
+      kind
+      calories(version: $caloriesVersion)
+      totalCarbsG
+      proteinG
+      totalFatG
     }
     modifierGroups {
       id
@@ -114,6 +129,11 @@ query CustomizationData($productId: ID!, $restaurantId: ID!) {
         ingredient {
           id
           name
+          kind
+          calories(version: $caloriesVersion)
+          totalCarbsG
+          proteinG
+          totalFatG
         }
       }
     }
@@ -281,6 +301,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -290,6 +313,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -299,9 +325,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -310,6 +346,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {
@@ -432,6 +471,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -441,6 +483,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -450,9 +495,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -461,6 +516,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {
@@ -625,6 +683,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -634,6 +695,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -643,9 +707,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -654,6 +728,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {
@@ -805,6 +882,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -814,6 +894,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -823,9 +906,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -834,6 +927,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {
@@ -973,6 +1069,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -982,6 +1081,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -991,9 +1093,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -1002,6 +1114,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {
@@ -1181,6 +1296,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -1190,6 +1308,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -1199,9 +1320,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -1210,6 +1341,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {
@@ -1349,6 +1483,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -1358,6 +1495,9 @@ fragment BagCartData on Order {
       __typename
       name
       kind
+      proteinG
+      totalCarbsG
+      totalFatG
       asset {
         url
       }
@@ -1367,9 +1507,19 @@ fragment BagCartData on Order {
       __typename
       name
       slug
+      calories
       isCustom
       isModifiable
       enableDressingDetails
+      baseProduct {
+        __typename
+        id
+        slug
+        proteinG
+        totalCarbsG
+        totalFatG
+        calories
+      }
       asset {
         url
       }
@@ -1378,6 +1528,9 @@ fragment BagCartData on Order {
         __typename
         name
         kind
+        proteinG
+        totalCarbsG
+        totalFatG
       }
     }
     mixedDressingDetails {

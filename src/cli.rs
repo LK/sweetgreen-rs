@@ -395,43 +395,7 @@ async fn run_menu(command: MenuCommands, client: &SweetgreenClient) -> Result<()
                 restaurant_name: restaurant.name,
                 products: products
                     .into_iter()
-                    .map(|entry| MenuProductSummary {
-                        id: entry.product.id,
-                        name: entry.product.name,
-                        slug: entry.product.slug,
-                        category_id: entry.category_id,
-                        category_name: entry.category_name,
-                        out_of_stock: entry.product.out_of_stock.unwrap_or(false),
-                        is_modifiable: entry.product.is_modifiable.unwrap_or(false),
-                        restaurant_id: entry.product.restaurant_id,
-                        ingredients: if args.include_ingredients {
-                            Some(
-                                entry
-                                    .product
-                                    .ingredients
-                                    .iter()
-                                    .map(|ingredient| ingredient.name.clone())
-                                    .collect(),
-                            )
-                        } else {
-                            None
-                        },
-                        ingredient_details: if args.include_ingredients {
-                            Some(
-                                entry
-                                    .product
-                                    .ingredients
-                                    .iter()
-                                    .map(|ingredient| MenuIngredientSummary {
-                                        id: ingredient.id.clone(),
-                                        name: ingredient.name.clone(),
-                                    })
-                                    .collect(),
-                            )
-                        } else {
-                            None
-                        },
-                    })
+                    .map(|entry| menu_product_summary(&entry, args.include_ingredients))
                     .collect(),
             };
             print_json(&output);
@@ -445,37 +409,7 @@ async fn run_menu(command: MenuCommands, client: &SweetgreenClient) -> Result<()
                 restaurant_id: restaurant.id,
                 restaurant_name: restaurant.name,
                 requested_name: args.name,
-                matched_product: MenuProductSummary {
-                    id: resolved.entry.product.id.clone(),
-                    name: resolved.entry.product.name.clone(),
-                    slug: resolved.entry.product.slug.clone(),
-                    category_id: resolved.entry.category_id.clone(),
-                    category_name: resolved.entry.category_name.clone(),
-                    out_of_stock: resolved.entry.product.out_of_stock.unwrap_or(false),
-                    is_modifiable: resolved.entry.product.is_modifiable.unwrap_or(false),
-                    restaurant_id: resolved.entry.product.restaurant_id.clone(),
-                    ingredients: Some(
-                        resolved
-                            .entry
-                            .product
-                            .ingredients
-                            .iter()
-                            .map(|ingredient| ingredient.name.clone())
-                            .collect(),
-                    ),
-                    ingredient_details: Some(
-                        resolved
-                            .entry
-                            .product
-                            .ingredients
-                            .iter()
-                            .map(|ingredient| MenuIngredientSummary {
-                                id: ingredient.id.clone(),
-                                name: ingredient.name.clone(),
-                            })
-                            .collect(),
-                    ),
-                },
+                matched_product: menu_product_summary(resolved.entry, true),
                 match_score: resolved.score,
             };
             print_json(&output);
@@ -815,6 +749,10 @@ struct MenuProductSummary {
     slug: Option<String>,
     category_id: String,
     category_name: String,
+    calories: Option<f64>,
+    protein_g: Option<f64>,
+    total_carbs_g: Option<f64>,
+    total_fat_g: Option<f64>,
     out_of_stock: bool,
     is_modifiable: bool,
     restaurant_id: Option<String>,
@@ -826,6 +764,10 @@ struct MenuProductSummary {
 struct MenuIngredientSummary {
     id: String,
     name: String,
+    calories: Option<f64>,
+    protein_g: Option<f64>,
+    total_carbs_g: Option<f64>,
+    total_fat_g: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -873,6 +815,10 @@ struct ResolvedIngredientMatch {
     requested_name: String,
     matched_name: String,
     ingredient_id: String,
+    calories: Option<f64>,
+    protein_g: Option<f64>,
+    total_carbs_g: Option<f64>,
+    total_fat_g: Option<f64>,
     match_score: i32,
     match_scope: String,
     product_examples: Vec<String>,
@@ -887,6 +833,10 @@ struct ProductMatch<'a> {
 struct RestaurantIngredientEntry {
     ingredient_id: String,
     ingredient_name: String,
+    calories: Option<f64>,
+    protein_g: Option<f64>,
+    total_carbs_g: Option<f64>,
+    total_fat_g: Option<f64>,
     product_names: Vec<String>,
 }
 
@@ -915,28 +865,143 @@ fn flatten_menu_products(restaurant: &MenuRestaurant) -> Vec<MenuProductEntry> {
     out
 }
 
+fn menu_product_summary(entry: &MenuProductEntry, include_ingredients: bool) -> MenuProductSummary {
+    MenuProductSummary {
+        id: entry.product.id.clone(),
+        name: entry.product.name.clone(),
+        slug: entry.product.slug.clone(),
+        category_id: entry.category_id.clone(),
+        category_name: entry.category_name.clone(),
+        calories: menu_product_calories(&entry.product),
+        protein_g: menu_product_protein_g(&entry.product),
+        total_carbs_g: menu_product_total_carbs_g(&entry.product),
+        total_fat_g: menu_product_total_fat_g(&entry.product),
+        out_of_stock: entry.product.out_of_stock.unwrap_or(false),
+        is_modifiable: entry.product.is_modifiable.unwrap_or(false),
+        restaurant_id: entry.product.restaurant_id.clone(),
+        ingredients: if include_ingredients {
+            Some(
+                entry
+                    .product
+                    .ingredients
+                    .iter()
+                    .map(|ingredient| ingredient.name.clone())
+                    .collect(),
+            )
+        } else {
+            None
+        },
+        ingredient_details: if include_ingredients {
+            Some(
+                entry
+                    .product
+                    .ingredients
+                    .iter()
+                    .map(menu_ingredient_summary)
+                    .collect(),
+            )
+        } else {
+            None
+        },
+    }
+}
+
+fn menu_ingredient_summary(ingredient: &MenuIngredient) -> MenuIngredientSummary {
+    MenuIngredientSummary {
+        id: ingredient.id.clone(),
+        name: ingredient.name.clone(),
+        calories: ingredient.calories,
+        protein_g: ingredient.protein_g,
+        total_carbs_g: ingredient.total_carbs_g,
+        total_fat_g: ingredient.total_fat_g,
+    }
+}
+
+fn menu_product_calories(product: &MenuProduct) -> Option<f64> {
+    product
+        .calories
+        .or_else(|| product.base_product.as_ref().and_then(|base| base.calories))
+}
+
+fn menu_product_protein_g(product: &MenuProduct) -> Option<f64> {
+    product
+        .base_product
+        .as_ref()
+        .and_then(|base| base.protein_g)
+}
+
+fn menu_product_total_carbs_g(product: &MenuProduct) -> Option<f64> {
+    product
+        .base_product
+        .as_ref()
+        .and_then(|base| base.total_carbs_g)
+}
+
+fn menu_product_total_fat_g(product: &MenuProduct) -> Option<f64> {
+    product
+        .base_product
+        .as_ref()
+        .and_then(|base| base.total_fat_g)
+}
+
 fn build_restaurant_ingredient_catalog(
     products: &[MenuProductEntry],
 ) -> Vec<RestaurantIngredientEntry> {
-    let mut by_id: BTreeMap<String, (String, BTreeSet<String>)> = BTreeMap::new();
+    let mut by_id: BTreeMap<
+        String,
+        (
+            String,
+            BTreeSet<String>,
+            Option<f64>,
+            Option<f64>,
+            Option<f64>,
+            Option<f64>,
+        ),
+    > = BTreeMap::new();
     for entry in products {
         for ingredient in &entry.product.ingredients {
-            let slot = by_id
-                .entry(ingredient.id.clone())
-                .or_insert_with(|| (ingredient.name.clone(), BTreeSet::new()));
+            let slot = by_id.entry(ingredient.id.clone()).or_insert_with(|| {
+                (
+                    ingredient.name.clone(),
+                    BTreeSet::new(),
+                    ingredient.calories,
+                    ingredient.protein_g,
+                    ingredient.total_carbs_g,
+                    ingredient.total_fat_g,
+                )
+            });
             if slot.0.is_empty() {
                 slot.0 = ingredient.name.clone();
             }
             slot.1.insert(entry.product.name.clone());
+            if slot.2.is_none() {
+                slot.2 = ingredient.calories;
+            }
+            if slot.3.is_none() {
+                slot.3 = ingredient.protein_g;
+            }
+            if slot.4.is_none() {
+                slot.4 = ingredient.total_carbs_g;
+            }
+            if slot.5.is_none() {
+                slot.5 = ingredient.total_fat_g;
+            }
         }
     }
 
     by_id
         .into_iter()
         .map(
-            |(ingredient_id, (ingredient_name, product_names))| RestaurantIngredientEntry {
+            |(
+                ingredient_id,
+                (ingredient_name, product_names, calories, protein_g, total_carbs_g, total_fat_g),
+            )| RestaurantIngredientEntry {
                 ingredient_id,
                 ingredient_name,
+                calories,
+                protein_g,
+                total_carbs_g,
+                total_fat_g,
                 product_names: product_names.into_iter().collect(),
             },
         )
@@ -948,7 +1013,17 @@ async fn build_customization_ingredient_catalog(
     restaurant: &MenuRestaurant,
     products: &[MenuProductEntry],
 ) -> Vec<RestaurantIngredientEntry> {
-    let mut by_id: BTreeMap<String, (String, BTreeSet<String>)> = BTreeMap::new();
+    let mut by_id: BTreeMap<
+        String,
+        (
+            String,
+            BTreeSet<String>,
+            Option<f64>,
+            Option<f64>,
+            Option<f64>,
+            Option<f64>,
+        ),
+    > = BTreeMap::new();
     let state = AuthState::default();
 
     for entry in products {
@@ -974,22 +1049,48 @@ async fn build_customization_ingredient_catalog(
         };
 
         for ingredient in ingredients {
-            let slot = by_id
-                .entry(ingredient.id.clone())
-                .or_insert_with(|| (ingredient.name.clone(), BTreeSet::new()));
+            let slot = by_id.entry(ingredient.id.clone()).or_insert_with(|| {
+                (
+                    ingredient.name.clone(),
+                    BTreeSet::new(),
+                    ingredient.calories,
+                    ingredient.protein_g,
+                    ingredient.total_carbs_g,
+                    ingredient.total_fat_g,
+                )
+            });
             if slot.0.is_empty() {
                 slot.0 = ingredient.name.clone();
             }
             slot.1.insert(entry.product.name.clone());
+            if slot.2.is_none() {
+                slot.2 = ingredient.calories;
+            }
+            if slot.3.is_none() {
+                slot.3 = ingredient.protein_g;
+            }
+            if slot.4.is_none() {
+                slot.4 = ingredient.total_carbs_g;
+            }
+            if slot.5.is_none() {
+                slot.5 = ingredient.total_fat_g;
+            }
         }
     }
 
     by_id
         .into_iter()
         .map(
-            |(ingredient_id, (ingredient_name, product_names))| RestaurantIngredientEntry {
+            |(
+                ingredient_id,
+                (ingredient_name, product_names, calories, protein_g, total_carbs_g, total_fat_g),
+            )| RestaurantIngredientEntry {
                 ingredient_id,
                 ingredient_name,
+                calories,
+                protein_g,
+                total_carbs_g,
+                total_fat_g,
                 product_names: product_names.into_iter().collect(),
             },
         )
@@ -1329,6 +1430,10 @@ fn score_ingredient_candidates(
                 requested_name: requested_name.to_string(),
                 matched_name: ingredient.name.clone(),
                 ingredient_id: ingredient.id.clone(),
+                calories: ingredient.calories,
+                protein_g: ingredient.protein_g,
+                total_carbs_g: ingredient.total_carbs_g,
+                total_fat_g: ingredient.total_fat_g,
                 match_score: score + 200,
                 match_scope: "product".to_string(),
                 product_examples: if product_name.is_empty() {
@@ -1356,6 +1461,10 @@ fn score_ingredient_candidates(
                 requested_name: requested_name.to_string(),
                 matched_name: ingredient.ingredient_name.clone(),
                 ingredient_id: ingredient.ingredient_id.clone(),
+                calories: ingredient.calories,
+                protein_g: ingredient.protein_g,
+                total_carbs_g: ingredient.total_carbs_g,
+                total_fat_g: ingredient.total_fat_g,
                 match_score: score,
                 match_scope: "restaurant".to_string(),
                 product_examples: ingredient.product_names.clone(),
@@ -1457,8 +1566,9 @@ async fn ensure_requested_restaurant_matches_cart(
     state: &AuthState,
     requested_restaurant_id: Option<&str>,
 ) -> Result<(), SweetgreenError> {
-    let Some(requested_restaurant_id) =
-        requested_restaurant_id.map(str::trim).filter(|value| !value.is_empty())
+    let Some(requested_restaurant_id) = requested_restaurant_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
     else {
         return Ok(());
     };
@@ -1466,18 +1576,27 @@ async fn ensure_requested_restaurant_matches_cart(
     let Some(cart) = client.cart(state).await? else {
         return Ok(());
     };
-    let Some(active_restaurant) = cart.restaurant else {
-        return Ok(());
-    };
-
-    if active_restaurant.id == requested_restaurant_id {
-        return Ok(());
+    if let Some(message) = requested_restaurant_conflict_message(&cart, requested_restaurant_id) {
+        return Err(SweetgreenError::InvalidArgument(message));
     }
 
-    Err(SweetgreenError::InvalidArgument(format!(
+    Ok(())
+}
+
+fn requested_restaurant_conflict_message(
+    cart: &crate::models::Cart,
+    requested_restaurant_id: &str,
+) -> Option<String> {
+    let active_restaurant = cart.restaurant.as_ref()?;
+
+    if active_restaurant.id == requested_restaurant_id || cart.line_items.is_empty() {
+        return None;
+    }
+
+    Some(format!(
         "active cart belongs to restaurant {} ({}) but requested restaurant is {}; clear the cart or use the active cart restaurant",
         active_restaurant.id, active_restaurant.name, requested_restaurant_id
-    )))
+    ))
 }
 
 async fn resolve_effective_add_restaurant_id(
@@ -1510,7 +1629,9 @@ async fn validate_raw_add_request(
         return Ok(());
     };
 
-    let restaurant = client.menu_for_restaurant(restaurant_id.to_string()).await?;
+    let restaurant = client
+        .menu_for_restaurant(restaurant_id.to_string())
+        .await?;
     let products = flatten_menu_products(&restaurant);
     let Some(product) = products.iter().find(|entry| entry.product.id == product_id) else {
         return Err(SweetgreenError::InvalidArgument(format!(
@@ -1818,4 +1939,75 @@ where
     let rendered = serde_json::to_string_pretty(value)
         .unwrap_or_else(|_| "{\"error\":\"failed to serialize output\"}".to_string());
     println!("{rendered}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::requested_restaurant_conflict_message;
+    use crate::models::{Cart, CartLineItem, ProductSummary, Restaurant};
+
+    #[test]
+    fn empty_cart_can_switch_restaurants() {
+        let cart = test_cart("70", "DUMBO", vec![]);
+        assert_eq!(requested_restaurant_conflict_message(&cart, "2104"), None);
+    }
+
+    #[test]
+    fn populated_cart_cannot_switch_restaurants() {
+        let cart = test_cart("70", "DUMBO", vec![test_line_item()]);
+        let message = requested_restaurant_conflict_message(&cart, "2104");
+        assert_eq!(
+            message.as_deref(),
+            Some(
+                "active cart belongs to restaurant 70 (DUMBO) but requested restaurant is 2104; clear the cart or use the active cart restaurant"
+            )
+        );
+    }
+
+    #[test]
+    fn populated_cart_allows_same_restaurant() {
+        let cart = test_cart("70", "DUMBO", vec![test_line_item()]);
+        assert_eq!(requested_restaurant_conflict_message(&cart, "70"), None);
+    }
+
+    fn test_cart(restaurant_id: &str, restaurant_name: &str, line_items: Vec<CartLineItem>) -> Cart {
+        Cart {
+            id: "cart-1".to_string(),
+            order_type: None,
+            can_track_order_status: None,
+            restaurant: Some(Restaurant {
+                id: restaurant_id.to_string(),
+                name: restaurant_name.to_string(),
+                slug: None,
+                entity_id: None,
+                delivery_fee: None,
+                delivery_min_subtotal: None,
+            }),
+            ledger: None,
+            delivery_order_detail: None,
+            available_wanted_times: vec![],
+            line_items,
+        }
+    }
+
+    fn test_line_item() -> CartLineItem {
+        CartLineItem {
+            id: "line-item-1".to_string(),
+            slug: None,
+            quantity: 1,
+            custom_name: None,
+            cost: None,
+            per_item_cost: None,
+            added_ingredients: vec![],
+            removed_ingredients: vec![],
+            product: ProductSummary {
+                id: "product-1".to_string(),
+                name: "Harvest Bowl".to_string(),
+                slug: None,
+                calories: None,
+                base_product: None,
+                ingredients: vec![],
+            },
+        }
+    }
 }

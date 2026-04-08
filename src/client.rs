@@ -435,6 +435,7 @@ impl SweetgreenClient {
                 queries::MENU_CONTENT_RESTAURANT_QUERY,
                 json!({
                     "id": id,
+                    "caloriesVersion": "v2",
                 }),
                 false,
             )
@@ -480,6 +481,7 @@ impl SweetgreenClient {
                 json!({
                     "productId": product_id.into(),
                     "restaurantId": restaurant_id.into(),
+                    "caloriesVersion": "v2",
                 }),
                 true,
             )
