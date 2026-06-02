@@ -578,7 +578,7 @@ mutation AddLineItemToCart($input: AddLineItemToCartInput!) {
     __typename
     ... on AddLineItemToCartSuccess {
       cart {
-        ...BagCartData
+        ...AddLineItemCartData
       }
     }
     ... on RestaurantMaxQuantityExceeded {
@@ -608,64 +608,26 @@ mutation AddLineItemToCart($input: AddLineItemToCartInput!) {
   }
 }
 
-fragment BagCartData on Order {
+fragment AddLineItemCartData on Order {
   id
   __typename
   orderType
   canTrackOrderStatus
-  availableWantedTimes {
-    time
-    deliveryOffset
-  }
   restaurant {
     id
     __typename
     slug
     name
-    city
-    state
-    address
-    zipCode
-    isOutpost
     deliveryMinSubtotal
-    isOutpost
-    showOutpostPriceDifferenciationDisclosure
-    showDeliveryPriceDifferenciationDisclosure
-    showDeliveryFeeDisclosure
     deliveryFee
-    availableDropOffLocations {
-      id
-      __typename
-      name
-    }
-    asset {
-      url
-    }
   }
   deliveryOrderDetail {
-    id
-    __typename
     tip
     deliveryFee
     vendor
-    orderId
     vendorRestaurantId
-    estimatedDeliveryTime
     address {
       id
-      __typename
-      street
-      secondaryStreet
-      city
-      state
-      country
-      zipCode
-      deliveryPreference
-      googlePlaceId
-      latitude
-      longitude
-      name
-      notes
     }
   }
   lineItems {
@@ -686,9 +648,6 @@ fragment BagCartData on Order {
       proteinG
       totalCarbsG
       totalFatG
-      asset {
-        url
-      }
     }
     removedIngredients {
       id
@@ -698,9 +657,6 @@ fragment BagCartData on Order {
       proteinG
       totalCarbsG
       totalFatG
-      asset {
-        url
-      }
     }
     product {
       id
@@ -733,11 +689,6 @@ fragment BagCartData on Order {
         totalFatG
       }
     }
-    mixedDressingDetails {
-      ingredientId
-      weight
-    }
-    dressingMode
   }
   ledger {
     tax
@@ -746,27 +697,6 @@ fragment BagCartData on Order {
     discountsTotal
     creditsTotal
     tip
-    discounts {
-      id
-      __typename
-      name
-      amount
-      description
-    }
-    credits {
-      id
-      __typename
-      name
-      amount
-      description
-    }
-    fees {
-      id
-      __typename
-      name
-      amount
-      description
-    }
   }
 }
 "#;

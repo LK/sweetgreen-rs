@@ -490,12 +490,15 @@ pub struct DeliveryOrderDetailInput {
 #[serde(rename_all = "camelCase")]
 pub struct AddLineItemToCartInput {
     pub additions: Vec<IngredientModificationInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub delivery_order_details: Option<DeliveryOrderDetailInput>,
     pub mixed_dressing_details: Vec<MixedDressingDetailsInput>,
     pub product_id: String,
     pub quantity: i64,
     pub removals: Vec<IngredientModificationInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub restaurant_id: Option<i64>,
     pub substitutions: Vec<IngredientSubstitutionModificationInput>,
 }
