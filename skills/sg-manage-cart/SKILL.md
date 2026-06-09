@@ -35,6 +35,18 @@ Use OTP mode when browser import is unavailable:
 sg auth login --email <email>
 ```
 
+### Interpreting `sg auth status`
+
+- In browser mode (`"auth_mode": "browser"`), the fields `has_session_id`,
+  `session_id_preview`, `email`, and the refresh/authorization token fields
+  belong to local OTP auth and are **expected to be null/false**. Do not treat
+  them as a sign the user is logged out.
+- Browser auth is healthy when `browser_session_logged_in` is `true`. This is
+  a live check against the Sweetgreen API using the imported cookies.
+- Only ask the user to log into sweetgreen.com in their browser (and re-run
+  `sg auth import-browser-cookies`) when `browser_session_logged_in` is
+  `false`, or a cart command fails with "browser session is not logged in".
+
 ## Step 2: Resolve IDs and Menu Details
 
 Find restaurant IDs:

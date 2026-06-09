@@ -12,7 +12,7 @@ use crate::models::{
     IngredientModificationInput, IngredientSubstitutionModificationInput, MenuIngredient,
     MenuProduct, MenuRestaurant, MixedDressingDetailsInput,
 };
-use crate::state::{AuthState, StateStore};
+use crate::state::{AuthMode, AuthState, RedactedAuthState, StateStore};
 
 #[derive(Debug, Parser)]
 #[command(name = "sg", about = "sweetgreen cart CLI")]
@@ -333,6 +333,19 @@ pub async fn run(cli: Cli) -> Result<(), SweetgreenError> {
     result
 }
 
+#[derive(Debug, Serialize)]
+struct AuthStatusOutput {
+    #[serde(flatten)]
+    state: RedactedAuthState,
+    // Live check of the browser cookie session; only populated in browser auth
+    // mode. The session_id/has_session_id fields above are local OTP auth state
+    // and stay empty in browser mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    browser_session_logged_in: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    browser_session_error: Option<String>,
+}
+
 async fn run_auth(command: AuthCommands, client: &SweetgreenClient) -> Result<(), SweetgreenError> {
     match command {
         AuthCommands::Login(args) => {
@@ -365,7 +378,22 @@ async fn run_auth(command: AuthCommands, client: &SweetgreenClient) -> Result<()
         }
         AuthCommands::Status => {
             let state = client.load_state()?;
-            print_json(&state.redacted());
+            let mut output = AuthStatusOutput {
+                state: state.redacted(),
+                browser_session_logged_in: None,
+                browser_session_error: None,
+            };
+            if state.auth_mode == AuthMode::Browser {
+                match client.get_session(&AuthState::default()).await {
+                    Ok(session) => {
+                        output.browser_session_logged_in = Some(session.is_logged_in);
+                    }
+                    Err(err) => {
+                        output.browser_session_error = Some(err.to_string());
+                    }
+                }
+            }
+            print_json(&output);
             Ok(())
         }
         AuthCommands::Logout => {
