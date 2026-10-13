@@ -35,10 +35,10 @@ use crate::graphql::{GraphqlRequest, GraphqlResponse};
 use crate::models::{
     AddLineItemMutationData, AddLineItemToCartInput, BagCountQueryData, Cart, CartQueryData,
     CustomizationDataQueryData, EditLineItemInCartInput, EditLineItemMutationData,
-    GiftCardBalanceQueryData, LocationSearchMatch, LocationsSearchByStringQueryData,
+    GiftCardBalanceQueryData, LocationsSearchByRestaurantNameQueryData,
     MenuContentRestaurantQueryData, MenuIngredient, MenuRestaurant, RedeemGiftCardMutationData,
     RemoveFromCartInput, RemoveLineItemMutationData, RemoveRewardInput, RemoveRewardMutationData,
-    Reward, RewardMutationData, RewardsQueryData, SessionInfo, SessionQueryData,
+    Reward, RewardMutationData, RewardsQueryData, SearchLocation, SessionInfo, SessionQueryData,
     SignInMutationData, SubmitPromoOrGiftCardCodeInput,
 };
 use crate::queries;
@@ -446,25 +446,21 @@ impl SweetgreenClient {
         })
     }
 
-    pub async fn search_locations_by_string(
+    pub async fn search_restaurants(
         &self,
-        search_string: impl Into<String>,
-        show_hidden: Option<bool>,
-    ) -> Result<Vec<LocationSearchMatch>, SweetgreenError> {
-        let search_string = search_string.into();
-        let data: LocationsSearchByStringQueryData = self
+        query: impl Into<String>,
+    ) -> Result<Vec<SearchLocation>, SweetgreenError> {
+        let query = query.into();
+        let data: LocationsSearchByRestaurantNameQueryData = self
             .graphql(
                 &AuthState::default(),
-                "LocationsSearchBySearchString",
-                queries::LOCATIONS_SEARCH_BY_STRING_QUERY,
-                json!({
-                    "searchString": search_string,
-                    "showHidden": show_hidden,
-                }),
+                "LocationsSearchByRestaurantName",
+                queries::LOCATIONS_SEARCH_BY_RESTAURANT_NAME_QUERY,
+                json!({ "query": query }),
                 false,
             )
             .await?;
-        Ok(data.search_locations_by_string)
+        Ok(data.search_restaurants)
     }
 
     pub async fn customization_ingredients_for_product(

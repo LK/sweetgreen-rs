@@ -412,16 +412,9 @@ pub struct MenuIngredient {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LocationsSearchByStringQueryData {
+pub struct LocationsSearchByRestaurantNameQueryData {
     #[serde(default)]
-    pub search_locations_by_string: Vec<LocationSearchMatch>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LocationSearchMatch {
-    pub score: Option<f64>,
-    pub location: SearchLocation,
+    pub search_restaurants: Vec<SearchLocation>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -438,14 +431,18 @@ pub struct SearchLocation {
     pub zip_code: Option<String>,
     pub is_outpost: Option<bool>,
     pub phone: Option<String>,
-    pub store_hours: Option<String>,
+    pub hours: Option<SearchLocationHours>,
     pub flex_message: Option<String>,
-    pub enabled: Option<bool>,
-    pub accepting_orders: Option<bool>,
+    pub is_accepting_orders: Option<bool>,
     pub not_accepting_orders_reason: Option<String>,
-    pub hidden: Option<bool>,
     pub sanitary_grade_display_text: Option<String>,
     pub sanitary_grade_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchLocationHours {
+    pub formatted: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

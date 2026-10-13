@@ -52,8 +52,10 @@ sg auth login --email <email>
 Find restaurant IDs:
 
 ```bash
-sg menu restaurants --query "<city|neighborhood|zip|name>"
+sg menu restaurants --query "<restaurant name, e.g. williamsburg>"
 ```
+
+This matches Sweetgreen restaurant names (often a neighborhood or building), not addresses or ZIP codes; a ZIP like `11201` returns no results.
 
 Inspect products and ingredients:
 

@@ -84,7 +84,7 @@ sg auth status
 sg auth refresh
 sg auth logout
 
-sg menu restaurants --query "11201"
+sg menu restaurants --query "williamsburg"
 sg cart view
 sg cart count
 sg cart wanted-times

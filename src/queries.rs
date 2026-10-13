@@ -144,42 +144,29 @@ query CustomizationData(
 }
 "#;
 
-pub const LOCATIONS_SEARCH_BY_STRING_QUERY: &str = r#"
-query LocationsSearchBySearchString(
-  $searchString: String!
-  $showHidden: Boolean
-) {
-  searchLocationsByString(
-    searchString: $searchString
-    showHidden: $showHidden
-  ) {
-    score
-    location {
-      ...SearchByStringLocationDetails
+pub const LOCATIONS_SEARCH_BY_RESTAURANT_NAME_QUERY: &str = r#"
+query LocationsSearchByRestaurantName($query: String!) {
+  searchRestaurants(query: $query) {
+    id
+    name
+    latitude
+    longitude
+    slug
+    address
+    city
+    state
+    zipCode
+    isOutpost
+    phone
+    isAcceptingOrders
+    hours {
+      formatted
     }
+    flexMessage
+    notAcceptingOrdersReason
+    sanitaryGradeDisplayText
+    sanitaryGradeUrl
   }
-}
-
-fragment SearchByStringLocationDetails on StoreLocation {
-  id
-  name
-  latitude
-  longitude
-  slug
-  address
-  city
-  state
-  zipCode
-  isOutpost
-  phone
-  storeHours
-  flexMessage
-  enabled
-  acceptingOrders
-  notAcceptingOrdersReason
-  hidden
-  sanitaryGradeDisplayText
-  sanitaryGradeUrl
 }
 "#;
 

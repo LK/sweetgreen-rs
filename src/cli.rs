@@ -449,26 +449,23 @@ async fn run_menu(command: MenuCommands, client: &SweetgreenClient) -> Result<()
                     "search query cannot be empty".to_string(),
                 ));
             }
-            let matches = client
-                .search_locations_by_string(args.query.clone(), Some(false))
-                .await?;
+            let matches = client.search_restaurants(args.query.clone()).await?;
             let output = MenuRestaurantSearchOutput {
                 query: args.query,
                 restaurants: matches
                     .into_iter()
                     .take(args.limit.max(1))
-                    .map(|entry| MenuRestaurantSearchResult {
-                        id: entry.location.id,
-                        name: entry.location.name,
-                        slug: entry.location.slug,
-                        address: entry.location.address,
-                        city: entry.location.city,
-                        state: entry.location.state,
-                        zip_code: entry.location.zip_code,
-                        latitude: entry.location.latitude,
-                        longitude: entry.location.longitude,
-                        accepting_orders: entry.location.accepting_orders,
-                        score: entry.score,
+                    .map(|location| MenuRestaurantSearchResult {
+                        id: location.id,
+                        name: location.name,
+                        slug: location.slug,
+                        address: location.address,
+                        city: location.city,
+                        state: location.state,
+                        zip_code: location.zip_code,
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        accepting_orders: location.is_accepting_orders,
                     })
                     .collect(),
             };
@@ -824,7 +821,6 @@ struct MenuRestaurantSearchResult {
     latitude: Option<f64>,
     longitude: Option<f64>,
     accepting_orders: Option<bool>,
-    score: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]

@@ -3,8 +3,8 @@
 ## Discover Restaurant IDs
 
 ```bash
-sg menu restaurants --query "brooklyn"
-sg menu restaurants --query "11201"
+sg menu restaurants --query "downtown brooklyn"
+sg menu restaurants --query "williamsburg"
 ```
 
 ## Find a Product and Ingredients
